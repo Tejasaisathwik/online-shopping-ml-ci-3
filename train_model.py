@@ -97,9 +97,19 @@ pipeline.fit(X_train, y_train)
 
 
 print("Model training completed")
-os.path.exists("online_shopping_purchase_model.pkl")
 
-print("Model saved as online_shopping_model.pkl")
+MODEL_FILE = "online_shopping_purchase_model.pkl"
+
+joblib.dump(pipeline, MODEL_FILE)
+
+print("Model saved successfully:", MODEL_FILE)
+
+if not os.path.exists(MODEL_FILE):
+    print("ERROR: Model file was not created")
+    raise SystemExit(1)
+
+print("Model file exists")
+print("Model file size:", os.path.getsize(MODEL_FILE), "bytes")
 
 
 # Prediction
