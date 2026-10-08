@@ -16,11 +16,9 @@ print("Current folder:", os.getcwd())
 print("Files in project:", os.listdir("."))
 
 # Check data folder
-print("Files in data folder:", os.listdir("data"))
+print("Files in project:", os.listdir("."))
 
-
-# Load dataset
-data = pd.read_csv("data/online_shopping_purchase_prediction_raw.csv")
+data = pd.read_csv("online_shopping_purchase_prediction_raw.csv")
 
 print("Dataset loaded successfully")
 print("Rows:", len(data))
