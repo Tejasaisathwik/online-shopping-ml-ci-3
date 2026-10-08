@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
@@ -10,6 +11,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
 
+# Check current folder
+print("Current folder:", os.getcwd())
+print("Files in project:", os.listdir("."))
+
+# Check data folder
+print("Files in data folder:", os.listdir("data"))
+
+
 # Load dataset
 data = pd.read_csv("data/online_shopping_purchase_prediction_raw.csv")
 
@@ -17,26 +26,29 @@ print("Dataset loaded successfully")
 print("Rows:", len(data))
 print("Columns:", len(data.columns))
 
-
 # Target column
 target = "Purchased"
 
 X = data.drop(columns=[target])
 y = data[target]
 
-
-# Identify categorical and numerical columns
+# Identify columns
 categorical_columns = X.select_dtypes(include=["object"]).columns.tolist()
 numerical_columns = X.select_dtypes(exclude=["object"]).columns.tolist()
 
+print("Categorical columns:", categorical_columns)
+print("Numerical columns:", numerical_columns)
 
-# Preprocessing
+
+# Numerical preprocessing
 numeric_transformer = Pipeline(
     steps=[
         ("imputer", SimpleImputer(strategy="median"))
     ]
 )
 
+
+# Categorical preprocessing
 categorical_transformer = Pipeline(
     steps=[
         ("imputer", SimpleImputer(strategy="most_frequent")),
@@ -45,6 +57,7 @@ categorical_transformer = Pipeline(
 )
 
 
+# Combine preprocessing
 preprocessor = ColumnTransformer(
     transformers=[
         ("num", numeric_transformer, numerical_columns),
@@ -53,13 +66,14 @@ preprocessor = ColumnTransformer(
 )
 
 
-# Model
+# Random Forest model
 model = RandomForestClassifier(
     n_estimators=100,
     random_state=42
 )
 
 
+# Complete pipeline
 pipeline = Pipeline(
     steps=[
         ("preprocessor", preprocessor),
@@ -68,7 +82,7 @@ pipeline = Pipeline(
 )
 
 
-# Train-test split
+# Split dataset
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
@@ -78,15 +92,20 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
+print("Training model...")
+
 # Train
 pipeline.fit(X_train, y_train)
+
+
+print("Model training completed")
 
 
 # Prediction
 y_pred = pipeline.predict(X_test)
 
 
-# Metrics
+# Calculate metrics
 accuracy = accuracy_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
 
