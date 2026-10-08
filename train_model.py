@@ -1,136 +1,111 @@
-import json
-import joblib
 import pandas as pd
+import json
 
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, f1_score
 
 
-DATA_FILE = "online_shopping.csv"
+# Load dataset
+data = pd.read_csv("data/online_shopping_purchase_prediction_raw.csv")
+
+print("Dataset loaded successfully")
+print("Rows:", len(data))
+print("Columns:", len(data.columns))
 
 
-def load_dataset():
-    print("Loading online shopping dataset...")
+# Target column
+target = "Purchased"
 
-    data = pd.read_csv(DATA_FILE)
-
-    print("Dataset loaded successfully.")
-    print("Number of records:", len(data))
-    print("Number of columns:", len(data.columns))
-
-    return data
+X = data.drop(columns=[target])
+y = data[target]
 
 
-def train_model():
-    data = load_dataset()
+# Identify categorical and numerical columns
+categorical_columns = X.select_dtypes(include=["object"]).columns.tolist()
+numerical_columns = X.select_dtypes(exclude=["object"]).columns.tolist()
 
-    # Target column
-    target = "Purchased"
 
-    # Remove rows where target is missing
-    data = data.dropna(subset=[target])
+# Preprocessing
+numeric_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+    ]
+)
 
-    # Separate input and target
-    X = data.drop(columns=[target])
-    y = data[target]
-
-    print("\nTarget distribution:")
-    print(y.value_counts())
-
-    # Identify numerical and categorical columns
-    numerical_features = X.select_dtypes(
-        include=["int64", "float64"]
-    ).columns.tolist()
-
-    categorical_features = X.select_dtypes(
-        include=["object"]
-    ).columns.tolist()
-
-    print("\nNumerical features:")
-    print(numerical_features)
-
-    print("\nCategorical features:")
-    print(categorical_features)
-
-    # Numerical preprocessing
-    numerical_pipeline = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
-
-    # Categorical preprocessing
-    categorical_pipeline = Pipeline([
+categorical_transformer = Pipeline(
+    steps=[
         ("imputer", SimpleImputer(strategy="most_frequent")),
         ("encoder", OneHotEncoder(handle_unknown="ignore"))
-    ])
-
-    # Combine preprocessing
-    preprocessing = ColumnTransformer([
-        ("numerical", numerical_pipeline, numerical_features),
-        ("categorical", categorical_pipeline, categorical_features)
-    ])
-
-    # Complete ML pipeline
-    model = Pipeline([
-        ("preprocessing", preprocessing),
-        ("classifier", LogisticRegression(max_iter=1000, random_state=42))
-    ])
-
-    # Train/test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        random_state=42,
-        stratify=y
-    )
-
-    print("\nTraining records:", len(X_train))
-    print("Testing records:", len(X_test))
-
-    # Train
-    print("\nTraining model...")
-
-    model.fit(X_train, y_train)
-
-    # Prediction
-    predictions = model.predict(X_test)
-
-    # Evaluation
-    accuracy = accuracy_score(y_test, predictions)
-    matrix = confusion_matrix(y_test, predictions)
-
-    print("\nModel Evaluation")
-    print("----------------")
-    print("Accuracy:", round(accuracy, 4))
-
-    print("\nConfusion Matrix:")
-    print(matrix)
-
-    # Save model
-    joblib.dump(model, "online_shopping_model.pkl")
-
-    print("\nModel saved as online_shopping_model.pkl")
-
-    # Save metrics
-    metrics = {
-        "accuracy": float(accuracy),
-        "training_records": len(X_train),
-        "testing_records": len(X_test)
-    }
-
-    with open("metrics.json", "w") as file:
-        json.dump(metrics, file, indent=4)
-
-    print("Metrics saved as metrics.json")
-
-    return accuracy
+    ]
+)
 
 
-if __name__ == "__main__":
-    train_model()
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numerical_columns),
+        ("cat", categorical_transformer, categorical_columns)
+    ]
+)
+
+
+# Model
+model = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42
+)
+
+
+pipeline = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ]
+)
+
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+
+# Train
+pipeline.fit(X_train, y_train)
+
+
+# Prediction
+y_pred = pipeline.predict(X_test)
+
+
+# Metrics
+accuracy = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+
+
+print("Accuracy:", round(accuracy, 4))
+print("F1 Score:", round(f1, 4))
+
+
+# Save metrics
+metrics = {
+    "accuracy": float(accuracy),
+    "f1_score": float(f1),
+    "training_records": len(X_train),
+    "testing_records": len(X_test)
+}
+
+
+with open("metrics.json", "w") as file:
+    json.dump(metrics, file, indent=4)
+
+
+print("metrics.json created successfully")
