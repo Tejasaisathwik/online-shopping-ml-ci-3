@@ -22,32 +22,63 @@ jobs:
 
     steps:
 
+      # 1. Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # 3. Upgrade pip
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
+      # 4. Install project dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # 5. Train the ML model
       - name: Train online shopping model
         run: python train_model.py
 
+      # 6. Verify generated ML files
+      - name: Verify generated files
+        run: |
+          echo "Checking generated files..."
+          ls -la
+
+          if [ ! -f online_shopping_purchase_model.pkl ]; then
+            echo "ERROR: Model file not found!"
+            exit 1
+          fi
+
+          if [ ! -f metrics.json ]; then
+            echo "ERROR: metrics.json not found!"
+            exit 1
+          fi
+
+          echo "Model file found:"
+          ls -lh online_shopping_purchase_model.pkl
+
+          echo "Metrics file found:"
+          ls -lh metrics.json
+
+      # 7. Check ML quality gate
       - name: Check ML quality gate
         run: python quality_gate.py
 
+      # 8. Run ML pipeline tests
       - name: Run automated ML tests
         run: python -m unittest test_ml_pipeline.py -v
 
+      # 9. Run Flask API tests
       - name: Run prediction application tests
         run: python -m unittest test_app.py -v
 
+      # 10. Prepare release candidate
       - name: Prepare release candidate
         run: |
           mkdir -p release_candidate
@@ -62,9 +93,12 @@ jobs:
 
           printf "Online Shopping Purchase Prediction ML Application\nRun: python app.py\nEndpoint: POST /predict\n" > release_candidate/DEPLOYMENT.txt
 
+          echo "Release candidate created:"
+          ls -la release_candidate
+
+      # 11. Upload release candidate
       - name: Upload release candidate
         uses: actions/upload-artifact@v4
-
         with:
           name: online-shopping-ml-release
           path: release_candidate/
