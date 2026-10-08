@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 import os
-
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -97,6 +97,9 @@ pipeline.fit(X_train, y_train)
 
 
 print("Model training completed")
+joblib.dump(pipeline, "online_shopping_model.pkl")
+
+print("Model saved as online_shopping_model.pkl")
 
 
 # Prediction
