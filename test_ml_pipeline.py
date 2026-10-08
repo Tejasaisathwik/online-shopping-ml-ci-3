@@ -1,74 +1,80 @@
 import pandas as pd
-import joblib
 import json
+import os
+import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score
+
+
+# Check current folder
+print("Current folder:", os.getcwd())
+
+print("Files in project:", os.listdir("."))
 
 
 # Load dataset
-df = pd.read_csv("online_shopping_purchase_prediction_raw.csv")
+data = pd.read_csv(
+    "online_shopping_purchase_prediction_raw.csv"
+)
 
 print("Dataset loaded successfully")
-print("Dataset shape:", df.shape)
+print("Rows:", len(data))
+print("Columns:", len(data.columns))
 
 
 # Target column
 target = "Purchased"
 
-X = df.drop(columns=[target])
-y = df[target]
+X = data.drop(columns=[target])
+y = data[target]
 
 
-# Categorical columns
-categorical_columns = [
-    "Gender",
-    "DiscountUsed",
-    "DeviceType",
-    "Membership"
-]
+# Identify columns
+categorical_columns = X.select_dtypes(
+    include=["object"]
+).columns.tolist()
 
+numerical_columns = X.select_dtypes(
+    exclude=["object"]
+).columns.tolist()
 
-# Numerical columns
-numerical_columns = [
-    "Age",
-    "MonthlyIncome",
-    "WebsiteVisits",
-    "PagesViewed",
-    "TimeSpentMinutes",
-    "PreviousPurchases",
-    "CartItems",
-    "CustomerRating",
-    "PurchaseAmount"
-]
+print("Categorical columns:", categorical_columns)
+print("Numerical columns:", numerical_columns)
 
 
 # Numerical preprocessing
-numeric_pipeline = Pipeline([
-    ("imputer", SimpleImputer(strategy="median"))
-])
+numeric_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+    ]
+)
 
 
 # Categorical preprocessing
-categorical_pipeline = Pipeline([
-    ("imputer", SimpleImputer(strategy="most_frequent")),
-    ("encoder", OneHotEncoder(handle_unknown="ignore"))
-])
+categorical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
+    ]
+)
 
 
-# Preprocessor
-preprocessor = ColumnTransformer([
-    ("num", numeric_pipeline, numerical_columns),
-    ("cat", categorical_pipeline, categorical_columns)
-])
+# Combine preprocessing
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numerical_columns),
+        ("cat", categorical_transformer, categorical_columns)
+    ]
+)
 
 
-# ML model
+# Random Forest model
 model = RandomForestClassifier(
     n_estimators=100,
     random_state=42
@@ -76,13 +82,15 @@ model = RandomForestClassifier(
 
 
 # Complete pipeline
-pipeline = Pipeline([
-    ("preprocessor", preprocessor),
-    ("model", model)
-])
+pipeline = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ]
+)
 
 
-# Split data
+# Split dataset
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
@@ -98,53 +106,74 @@ print("Training model...")
 # Train model
 pipeline.fit(X_train, y_train)
 
+print("Model training completed")
 
-# Predictions
+
+# ------------------------------------------------
+# SAVE MODEL
+# ------------------------------------------------
+
+MODEL_FILE = "online_shopping_purchase_model.pkl"
+
+joblib.dump(
+    pipeline,
+    MODEL_FILE
+)
+
+print("Model saved successfully:", MODEL_FILE)
+
+
+# Check model file
+if os.path.exists(MODEL_FILE):
+
+    print("Model file exists")
+    print(
+        "Model file size:",
+        os.path.getsize(MODEL_FILE),
+        "bytes"
+    )
+
+else:
+
+    print("ERROR: Model file was not created")
+    raise SystemExit(1)
+
+
+# Prediction
 y_pred = pipeline.predict(X_test)
 
 
 # Calculate metrics
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred)
-recall = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
+accuracy = accuracy_score(
+    y_test,
+    y_pred
+)
+
+f1 = f1_score(
+    y_test,
+    y_pred
+)
 
 
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
-print("F1 Score:", f1)
-
-
-# Save trained model
-MODEL_FILE = "online_shopping_purchase_model.pkl"
-
-joblib.dump(pipeline, MODEL_FILE)
-
-print("Model saved successfully:")
-print(MODEL_FILE)
+print("Accuracy:", round(accuracy, 4))
+print("F1 Score:", round(f1, 4))
 
 
 # Save metrics
 metrics = {
-    "accuracy": accuracy,
-    "precision": precision,
-    "recall": recall,
-    "f1_score": f1
+    "accuracy": float(accuracy),
+    "f1_score": float(f1),
+    "training_records": len(X_train),
+    "testing_records": len(X_test)
 }
 
+
 with open("metrics.json", "w") as file:
-    json.dump(metrics, file, indent=4)
+    json.dump(
+        metrics,
+        file,
+        indent=4
+    )
 
-print("Metrics saved successfully.")
 
-
-# Verify model file
-import os
-
-if os.path.exists(MODEL_FILE):
-    print("SUCCESS: Model file exists.")
-    print("Model file size:", os.path.getsize(MODEL_FILE), "bytes")
-else:
-    print("ERROR: Model file was not created.")
-    raise SystemExit(1)
+print("metrics.json created successfully")
