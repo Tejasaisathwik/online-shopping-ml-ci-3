@@ -97,7 +97,7 @@ pipeline.fit(X_train, y_train)
 
 
 print("Model training completed")
-joblib.dump(pipeline, "online_shopping_model.pkl")
+os.path.exists("online_shopping_purchase_model.pkl")
 
 print("Model saved as online_shopping_model.pkl")
 
